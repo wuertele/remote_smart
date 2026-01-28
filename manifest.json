@@ -1,0 +1,14 @@
+{
+  "domain": "smart_ssh",
+  "name": "Remote SMART over SSH",
+  "version": "0.1.0",
+  "documentation": "https://github.com/yourname/smart_ssh",
+  "issue_tracker": "https://github.com/yourname/smart_ssh/issues",
+  "requirements": [
+    "asyncssh>=2.14.0"
+  ],
+  "dependencies": [],
+  "codeowners": ["@yourname"],
+  "config_flow": true,
+  "iot_class": "local_polling"
+}
