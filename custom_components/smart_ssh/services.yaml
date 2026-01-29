@@ -1,0 +1,11 @@
+reset_deltas:
+  name: Reset Delta Counters
+  description: Reset delta counters for one or all drives. Sets the current metric values as the new baseline.
+  fields:
+    device_id:
+      name: Device
+      description: Device to reset. If not specified, resets all devices.
+      required: false
+      selector:
+        device:
+          integration: smart_ssh

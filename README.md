@@ -21,7 +21,8 @@ regex-based fallbacks are supported.
 - Explicit device lists or discovery commands
 - Robust parsing (JSON preferred; text fallback)
 - Per-drive sensors and binary sensors
-- Delta tracking (detects *changes*, not just absolute values)
+- Max delta tracking (tracks maximum change since last reset)
+- Reset button entity per drive and `smart_ssh.reset_deltas` service
 - Policy-based “drive failing” indicator
 - Designed for large arrays and NAS environments
 
@@ -44,8 +45,11 @@ regex-based fallbacks are supported.
 3. Go to **Settings → Devices & Services → Add Integration**
 4. Search for **Remote SMART over SSH**
 
-### HACS
-(Not yet published. Manual installation only.)
+### HACS (Custom Repository)
+1. Open HACS in Home Assistant
+2. Click the three dots menu → **Custom repositories**
+3. Add your repository URL with category **Integration**
+4. Search for "Remote SMART over SSH" and install
 
 ---
 

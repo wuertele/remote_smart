@@ -1,0 +1,161 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "SSH Connection",
+        "description": "Configure SSH connection to the remote host running smartctl.",
+        "data": {
+          "host": "Host",
+          "port": "Port",
+          "username": "Username",
+          "auth_method": "Authentication Method",
+          "private_key": "Private Key (PEM format)",
+          "password": "Password",
+          "host_key_policy": "Host Key Policy",
+          "sudo_mode": "Sudo Mode",
+          "sudo_password": "Sudo Password",
+          "connect_timeout": "Connection Timeout",
+          "command_timeout": "Command Timeout"
+        },
+        "data_description": {
+          "host": "Hostname or IP address of the remote system",
+          "private_key": "Paste your private key in PEM format (starts with -----BEGIN)",
+          "host_key_policy": "How to handle unknown host keys",
+          "sudo_mode": "Whether to use sudo for smartctl commands"
+        }
+      },
+      "devices": {
+        "title": "Devices and Command",
+        "description": "Configure which devices to monitor and how to query them.",
+        "data": {
+          "devices": "Devices (one per line)",
+          "command_template": "Command Template",
+          "parser_type": "Parser Type",
+          "device_alias_command": "Device Alias Command (optional)",
+          "device_alias_format": "Alias Output Format"
+        },
+        "data_description": {
+          "devices": "Device paths to monitor, e.g., /dev/sata1, /dev/sda",
+          "command_template": "Command to run for each device. Use {device} as placeholder.",
+          "parser_type": "How to parse smartctl output",
+          "device_alias_command": "Command to get friendly device names (e.g., /usr/syno/bin/synodisk --enum for Synology)",
+          "device_alias_format": "How to parse the alias command output"
+        }
+      },
+      "options": {
+        "title": "Polling and Thresholds",
+        "description": "Configure how often to poll and when to consider a drive failing.",
+        "data": {
+          "scan_interval": "Scan Interval",
+          "max_parallel": "Max Parallel Commands",
+          "fail_mode": "Failure Mode",
+          "fail_if_pending_gt": "Fail if pending sectors greater than",
+          "fail_if_offline_unc_gt": "Fail if offline uncorrectable greater than",
+          "fail_if_reported_unc_gt": "Fail if reported uncorrectable greater than",
+          "warn_if_realloc_delta_gt": "Warn if reallocated sectors delta greater than"
+        },
+        "data_description": {
+          "scan_interval": "How often to poll SMART data (in minutes)",
+          "max_parallel": "Maximum number of concurrent smartctl commands",
+          "fail_mode": "What to do when a device query fails"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to the remote host. Check host, port, and network.",
+      "auth_failed": "SSH authentication failed. Check username, password, or private key.",
+      "command_failed": "smartctl command failed or returned invalid output.",
+      "no_devices": "At least one device must be specified."
+    },
+    "abort": {
+      "already_configured": "This host is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Options",
+        "description": "Adjust polling and failure thresholds.",
+        "data": {
+          "scan_interval": "Scan Interval (minutes)",
+          "max_parallel": "Max Parallel Commands",
+          "fail_if_pending_gt": "Fail if pending sectors >",
+          "fail_if_offline_unc_gt": "Fail if offline uncorrectable >",
+          "fail_if_reported_unc_gt": "Fail if reported uncorrectable >",
+          "warn_if_realloc_delta_gt": "Warn if reallocated delta >"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "reallocated_sectors": {
+        "name": "Reallocated Sectors"
+      },
+      "reported_uncorrect": {
+        "name": "Reported Uncorrectable"
+      },
+      "pending_sectors": {
+        "name": "Pending Sectors"
+      },
+      "offline_uncorrectable": {
+        "name": "Offline Uncorrectable"
+      },
+      "udma_crc_errors": {
+        "name": "UDMA CRC Errors"
+      },
+      "temperature": {
+        "name": "Temperature"
+      },
+      "power_on_hours": {
+        "name": "Power-On Hours"
+      },
+      "reallocated_sectors_delta": {
+        "name": "Reallocated Sectors (Delta)"
+      },
+      "reported_uncorrect_delta": {
+        "name": "Reported Uncorrectable (Delta)"
+      },
+      "pending_sectors_delta": {
+        "name": "Pending Sectors (Delta)"
+      },
+      "offline_uncorrectable_delta": {
+        "name": "Offline Uncorrectable (Delta)"
+      },
+      "udma_crc_errors_delta": {
+        "name": "UDMA CRC Errors (Delta)"
+      }
+    },
+    "binary_sensor": {
+      "smart_overall_ok": {
+        "name": "SMART Problem"
+      },
+      "has_pending_sectors": {
+        "name": "Has Pending Sectors"
+      },
+      "has_uncorrectable": {
+        "name": "Has Uncorrectable Errors"
+      },
+      "drive_failing": {
+        "name": "Drive Failing"
+      }
+    },
+    "button": {
+      "reset_deltas": {
+        "name": "Reset Delta Counters"
+      }
+    }
+  },
+  "services": {
+    "reset_deltas": {
+      "name": "Reset Delta Counters",
+      "description": "Reset delta counters for one or all drives. Sets the current metric values as the new baseline.",
+      "fields": {
+        "device_id": {
+          "name": "Device",
+          "description": "Device to reset. If not specified, resets all devices."
+        }
+      }
+    }
+  }
+}
