@@ -1,4 +1,4 @@
-"""Config flow for Remote SMART over SSH integration."""
+"""Config flow for Remote SMART integration."""
 from __future__ import annotations
 
 import logging
@@ -47,8 +47,15 @@ from .const import (
     CONF_PORT,
     CONF_PRIVATE_KEY,
     CONF_SCAN_INTERVAL,
+    CONF_SNMP_AUTH_KEY,
+    CONF_SNMP_AUTH_PROTOCOL,
+    CONF_SNMP_COMMUNITY,
+    CONF_SNMP_PRIV_KEY,
+    CONF_SNMP_PRIV_PROTOCOL,
+    CONF_SNMP_VERSION,
     CONF_SUDO_MODE,
     CONF_SUDO_PASSWORD,
+    CONF_TRANSPORT,
     CONF_USERNAME,
     CONF_WARN_REALLOC_DELTA_GT,
     DEFAULT_COMMAND_TEMPLATE,
@@ -61,6 +68,10 @@ from .const import (
     DEFAULT_MAX_PARALLEL,
     DEFAULT_PORT,
     DEFAULT_SCAN_INTERVAL,
+    DEFAULT_SNMP_AUTH_PROTOCOL,
+    DEFAULT_SNMP_PORT,
+    DEFAULT_SNMP_PRIV_PROTOCOL,
+    DEFAULT_SNMP_VERSION,
     DEFAULT_WARN_REALLOC_DELTA_GT,
     DOMAIN,
     FAIL_MODE_STALE,
@@ -69,17 +80,28 @@ from .const import (
     HOST_KEY_POLICY_STRICT,
     PARSER_SMARTCTL_ATA_TEXT,
     PARSER_SMARTCTL_JSON,
+    SNMP_AUTH_PROTOCOL_MD5,
+    SNMP_AUTH_PROTOCOL_NONE,
+    SNMP_AUTH_PROTOCOL_SHA,
+    SNMP_PRIV_PROTOCOL_AES,
+    SNMP_PRIV_PROTOCOL_DES,
+    SNMP_PRIV_PROTOCOL_NONE,
+    SNMP_VERSION_2C,
+    SNMP_VERSION_3,
     SUDO_MODE_NONE,
     SUDO_MODE_NOPASSWD,
     SUDO_MODE_PASSWORD,
+    TRANSPORT_SSH,
+    TRANSPORT_SYNOLOGY_SNMP,
 )
+from .snmp_client import SNMPConnectionError, SNMPError, SynologySNMPClient
 from .ssh_client import SSHAuthError, SSHClient, SSHConnectionError, SSHError
 
 _LOGGER = logging.getLogger(__name__)
 
 
 class SmartSSHConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Handle a config flow for Remote SMART over SSH."""
+    """Handle a config flow for Remote SMART."""
 
     VERSION = 1
 
@@ -90,11 +112,29 @@ class SmartSSHConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Handle the connection step."""
+        """Handle the transport selection step."""
+
+        if user_input is not None:
+            transport = user_input.get(CONF_TRANSPORT, TRANSPORT_SSH)
+            self._data[CONF_TRANSPORT] = transport
+            if transport == TRANSPORT_SYNOLOGY_SNMP:
+                return await self.async_step_snmp()
+            return await self.async_step_ssh()
+
+        return self.async_show_form(
+            step_id="user",
+            data_schema=self._get_transport_schema(user_input),
+        )
+
+    async def async_step_ssh(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle SSH connection setup."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            # Validate SSH connection
+            user_input[CONF_TRANSPORT] = TRANSPORT_SSH
+
             try:
                 await self._test_connection(user_input)
                 self._data.update(user_input)
@@ -109,8 +149,34 @@ class SmartSSHConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors["base"] = "cannot_connect"
 
         return self.async_show_form(
-            step_id="user",
-            data_schema=self._get_connection_schema(user_input),
+            step_id="ssh",
+            data_schema=self._get_ssh_connection_schema(user_input),
+            errors=errors,
+        )
+
+    async def async_step_snmp(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle Synology SNMP connection setup."""
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            user_input[CONF_TRANSPORT] = TRANSPORT_SYNOLOGY_SNMP
+
+            try:
+                await self._test_snmp_connection(user_input)
+                self._data.update(user_input)
+                return await self.async_step_options()
+            except SNMPConnectionError as err:
+                _LOGGER.debug("SNMP connection error: %s", err)
+                errors["base"] = "cannot_connect"
+            except SNMPError as err:
+                _LOGGER.debug("SNMP error: %s", err)
+                errors["base"] = "cannot_connect"
+
+        return self.async_show_form(
+            step_id="snmp",
+            data_schema=self._get_snmp_connection_schema(user_input),
             errors=errors,
         )
 
@@ -197,6 +263,27 @@ class SmartSSHConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         finally:
             await client.disconnect()
 
+    async def _test_snmp_connection(self, config: dict[str, Any]) -> None:
+        """Test SNMP connection with provided config."""
+        client = SynologySNMPClient(
+            host=config[CONF_HOST],
+            port=config[CONF_PORT],
+            version=config.get(CONF_SNMP_VERSION, SNMP_VERSION_3),
+            community=config.get(CONF_SNMP_COMMUNITY),
+            username=config.get(CONF_USERNAME),
+            auth_key=config.get(CONF_SNMP_AUTH_KEY),
+            auth_protocol=config.get(CONF_SNMP_AUTH_PROTOCOL, SNMP_AUTH_PROTOCOL_NONE),
+            priv_key=config.get(CONF_SNMP_PRIV_KEY),
+            priv_protocol=config.get(CONF_SNMP_PRIV_PROTOCOL, SNMP_PRIV_PROTOCOL_NONE),
+            timeout=config.get(CONF_CONNECT_TIMEOUT, DEFAULT_CONNECT_TIMEOUT),
+        )
+
+        try:
+            if not await client.test_connection():
+                raise SNMPConnectionError("SNMP connection test failed")
+        finally:
+            client.close()
+
     async def _test_command(self, device: str) -> None:
         """Test smartctl command on a device."""
         client = SSHClient(
@@ -226,10 +313,33 @@ class SmartSSHConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         finally:
             await client.disconnect()
 
-    def _get_connection_schema(
+    def _get_transport_schema(
         self, user_input: dict[str, Any] | None = None
     ) -> vol.Schema:
-        """Build connection step schema."""
+        """Build transport selection schema."""
+        user_input = user_input or {}
+
+        return vol.Schema(
+            {
+                vol.Required(
+                    CONF_TRANSPORT,
+                    default=user_input.get(CONF_TRANSPORT, TRANSPORT_SSH),
+                ): SelectSelector(
+                    SelectSelectorConfig(
+                        options=[
+                            {"value": TRANSPORT_SSH, "label": "SSH command"},
+                            {"value": TRANSPORT_SYNOLOGY_SNMP, "label": "Synology SNMP"},
+                        ],
+                        mode=SelectSelectorMode.DROPDOWN,
+                    )
+                ),
+            }
+        )
+
+    def _get_ssh_connection_schema(
+        self, user_input: dict[str, Any] | None = None
+    ) -> vol.Schema:
+        """Build SSH connection step schema."""
         user_input = user_input or {}
 
         return vol.Schema(
@@ -327,6 +437,97 @@ class SmartSSHConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         unit_of_measurement="seconds",
                     )
                 ),
+            }
+        )
+
+    def _get_snmp_connection_schema(
+        self, user_input: dict[str, Any] | None = None
+    ) -> vol.Schema:
+        """Build Synology SNMP connection step schema."""
+        user_input = user_input or {}
+
+        return vol.Schema(
+            {
+                vol.Required(
+                    CONF_HOST,
+                    default=user_input.get(CONF_HOST, ""),
+                ): TextSelector(TextSelectorConfig(type=TextSelectorType.TEXT)),
+                vol.Required(
+                    CONF_PORT,
+                    default=user_input.get(CONF_PORT, DEFAULT_SNMP_PORT),
+                ): NumberSelector(
+                    NumberSelectorConfig(
+                        min=1,
+                        max=65535,
+                        mode=NumberSelectorMode.BOX,
+                    )
+                ),
+                vol.Required(
+                    CONF_USERNAME,
+                    default=user_input.get(CONF_USERNAME, ""),
+                ): TextSelector(TextSelectorConfig(type=TextSelectorType.TEXT)),
+                vol.Required(
+                    CONF_CONNECT_TIMEOUT,
+                    default=user_input.get(CONF_CONNECT_TIMEOUT, DEFAULT_CONNECT_TIMEOUT),
+                ): NumberSelector(
+                    NumberSelectorConfig(
+                        min=5,
+                        max=60,
+                        step=1,
+                        mode=NumberSelectorMode.BOX,
+                        unit_of_measurement="seconds",
+                    )
+                ),
+                vol.Optional(
+                    CONF_SNMP_VERSION,
+                    default=user_input.get(CONF_SNMP_VERSION, DEFAULT_SNMP_VERSION),
+                ): SelectSelector(
+                    SelectSelectorConfig(
+                        options=[
+                            {"value": SNMP_VERSION_3, "label": "SNMPv3"},
+                            {"value": SNMP_VERSION_2C, "label": "SNMPv2c"},
+                        ],
+                        mode=SelectSelectorMode.DROPDOWN,
+                    )
+                ),
+                vol.Optional(
+                    CONF_SNMP_COMMUNITY,
+                    default=user_input.get(CONF_SNMP_COMMUNITY, ""),
+                ): TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD)),
+                vol.Optional(
+                    CONF_SNMP_AUTH_PROTOCOL,
+                    default=user_input.get(CONF_SNMP_AUTH_PROTOCOL, DEFAULT_SNMP_AUTH_PROTOCOL),
+                ): SelectSelector(
+                    SelectSelectorConfig(
+                        options=[
+                            {"value": SNMP_AUTH_PROTOCOL_SHA, "label": "HMAC-SHA"},
+                            {"value": SNMP_AUTH_PROTOCOL_MD5, "label": "HMAC-MD5"},
+                            {"value": SNMP_AUTH_PROTOCOL_NONE, "label": "None"},
+                        ],
+                        mode=SelectSelectorMode.DROPDOWN,
+                    )
+                ),
+                vol.Optional(
+                    CONF_SNMP_AUTH_KEY,
+                    default=user_input.get(CONF_SNMP_AUTH_KEY, ""),
+                ): TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD)),
+                vol.Optional(
+                    CONF_SNMP_PRIV_PROTOCOL,
+                    default=user_input.get(CONF_SNMP_PRIV_PROTOCOL, DEFAULT_SNMP_PRIV_PROTOCOL),
+                ): SelectSelector(
+                    SelectSelectorConfig(
+                        options=[
+                            {"value": SNMP_PRIV_PROTOCOL_AES, "label": "AES-128"},
+                            {"value": SNMP_PRIV_PROTOCOL_DES, "label": "DES"},
+                            {"value": SNMP_PRIV_PROTOCOL_NONE, "label": "None"},
+                        ],
+                        mode=SelectSelectorMode.DROPDOWN,
+                    )
+                ),
+                vol.Optional(
+                    CONF_SNMP_PRIV_KEY,
+                    default=user_input.get(CONF_SNMP_PRIV_KEY, ""),
+                ): TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD)),
             }
         )
 
@@ -481,7 +682,7 @@ class SmartSSHConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class SmartSSHOptionsFlow(config_entries.OptionsFlow):
-    """Handle options flow for Remote SMART over SSH."""
+    """Handle options flow for Remote SMART."""
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         """Initialize options flow."""
