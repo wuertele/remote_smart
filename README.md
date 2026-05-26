@@ -48,13 +48,13 @@ regex-based fallbacks are supported.
 1. Copy `custom_components/smart_ssh/` into your Home Assistant `config/custom_components/`
 2. Restart Home Assistant
 3. Go to **Settings → Devices & Services → Add Integration**
-4. Search for **Remote SMART over SSH**
+4. Search for **Remote SMART**
 
 ### HACS (Custom Repository)
 1. Open HACS in Home Assistant
 2. Click the three dots menu → **Custom repositories**
-3. Add your repository URL with category **Integration**
-4. Search for "Remote SMART over SSH" and install
+3. Add `https://github.com/wuertele/remote_smart` with category **Integration**
+4. Search for **Remote SMART** and install
 
 ---
 

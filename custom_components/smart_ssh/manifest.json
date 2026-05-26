@@ -2,8 +2,8 @@
   "domain": "smart_ssh",
   "name": "Remote SMART",
   "version": "0.2.0",
-  "documentation": "https://github.com/wuertele/smart_ssh",
-  "issue_tracker": "https://github.com/wuertele/smart_ssh/issues",
+  "documentation": "https://github.com/wuertele/remote_smart",
+  "issue_tracker": "https://github.com/wuertele/remote_smart/issues",
   "requirements": [
     "asyncssh>=2.14.0",
     "pysnmp>=7.1.0",

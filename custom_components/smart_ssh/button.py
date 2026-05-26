@@ -1,4 +1,4 @@
-"""Button platform for Remote SMART over SSH integration."""
+"""Button platform for Remote SMART integration."""
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

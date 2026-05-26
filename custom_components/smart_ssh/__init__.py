@@ -85,7 +85,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     is_snmp = entry.data.get(CONF_TRANSPORT) == TRANSPORT_SYNOLOGY_SNMP
     gateway_name = "SMART SNMP" if is_snmp else "SMART SSH"
     gateway_model = "Synology SNMP Agent" if is_snmp else "SSH Gateway"
-    gateway_manufacturer = "Synology" if is_snmp else "Remote SMART over SSH"
+    gateway_manufacturer = "Synology" if is_snmp else "Remote SMART"
 
     # Create the hub device so child devices can reference it via via_device
     device_registry = dr.async_get(hass)

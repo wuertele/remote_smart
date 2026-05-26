@@ -1,4 +1,4 @@
-"""Constants for the Remote SMART over SSH integration."""
+"""Constants for the Remote SMART integration."""
 from typing import Final
 
 DOMAIN: Final = "smart_ssh"
