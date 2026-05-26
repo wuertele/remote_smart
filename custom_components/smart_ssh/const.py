@@ -1,9 +1,10 @@
-"""Constants for the Remote SMART over SSH integration."""
+"""Constants for the Remote SMART integration."""
 from typing import Final
 
 DOMAIN: Final = "smart_ssh"
 
 # Config keys - Connection
+CONF_TRANSPORT: Final = "transport"
 CONF_HOST: Final = "host"
 CONF_PORT: Final = "port"
 CONF_USERNAME: Final = "username"
@@ -23,6 +24,14 @@ CONF_PARSER_TYPE: Final = "parser_type"
 CONF_DEVICE_ALIAS_COMMAND: Final = "device_alias_command"
 CONF_DEVICE_ALIAS_FORMAT: Final = "device_alias_format"
 
+# Config keys - SNMP
+CONF_SNMP_VERSION: Final = "snmp_version"
+CONF_SNMP_COMMUNITY: Final = "snmp_community"
+CONF_SNMP_AUTH_PROTOCOL: Final = "snmp_auth_protocol"
+CONF_SNMP_AUTH_KEY: Final = "snmp_auth_key"
+CONF_SNMP_PRIV_PROTOCOL: Final = "snmp_priv_protocol"
+CONF_SNMP_PRIV_KEY: Final = "snmp_priv_key"
+
 # Config keys - Options
 CONF_SCAN_INTERVAL: Final = "scan_interval"
 CONF_MAX_PARALLEL: Final = "max_parallel"
@@ -37,6 +46,10 @@ CONF_WARN_REALLOC_DELTA_GT: Final = "warn_if_realloc_delta_gt"
 # Auth method options
 AUTH_METHOD_KEY: Final = "private_key"
 AUTH_METHOD_PASSWORD: Final = "password"
+
+# Transport options
+TRANSPORT_SSH: Final = "ssh"
+TRANSPORT_SYNOLOGY_SNMP: Final = "synology_snmp"
 
 # Host key policy options
 HOST_KEY_POLICY_STRICT: Final = "strict"
@@ -61,14 +74,28 @@ ALIAS_FORMAT_SYNODISK: Final = "synodisk"
 ALIAS_FORMAT_KEY_VALUE: Final = "key_value"
 ALIAS_FORMAT_JSON: Final = "json"
 
+# SNMP options
+SNMP_VERSION_2C: Final = "2c"
+SNMP_VERSION_3: Final = "3"
+SNMP_AUTH_PROTOCOL_NONE: Final = "none"
+SNMP_AUTH_PROTOCOL_MD5: Final = "hmac-md5"
+SNMP_AUTH_PROTOCOL_SHA: Final = "hmac-sha"
+SNMP_PRIV_PROTOCOL_NONE: Final = "none"
+SNMP_PRIV_PROTOCOL_DES: Final = "des"
+SNMP_PRIV_PROTOCOL_AES: Final = "aes-cfb-128"
+
 # Defaults
 DEFAULT_PORT: Final = 22
+DEFAULT_SNMP_PORT: Final = 161
 DEFAULT_CONNECT_TIMEOUT: Final = 10
 DEFAULT_COMMAND_TIMEOUT: Final = 30
 DEFAULT_SCAN_INTERVAL: Final = 60  # minutes
 DEFAULT_MAX_PARALLEL: Final = 2
 DEFAULT_FAIL_MODE: Final = FAIL_MODE_UNAVAILABLE
 DEFAULT_COMMAND_TEMPLATE: Final = "smartctl -x -d sat {device}"
+DEFAULT_SNMP_VERSION: Final = SNMP_VERSION_3
+DEFAULT_SNMP_AUTH_PROTOCOL: Final = SNMP_AUTH_PROTOCOL_SHA
+DEFAULT_SNMP_PRIV_PROTOCOL: Final = SNMP_PRIV_PROTOCOL_AES
 
 # Default thresholds
 DEFAULT_FAIL_PENDING_GT: Final = 0

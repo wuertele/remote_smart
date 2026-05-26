@@ -1,4 +1,4 @@
-"""Diagnostics support for Remote SMART over SSH."""
+"""Diagnostics support for Remote SMART."""
 from __future__ import annotations
 
 from typing import Any

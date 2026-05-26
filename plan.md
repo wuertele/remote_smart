@@ -1,11 +1,11 @@
-# Remote SMART over SSH (Home Assistant Custom Integration) — Plan
+# Remote SMART (Home Assistant Custom Integration) — Plan
 
 ## Summary
-This repository implements a Home Assistant custom integration that monitors disk SMART health by executing a user-configured command over SSH against a user-configured set of drive identifiers (e.g., `/dev/sda`, `/dev/sata1`, `/dev/disk0`). The integration is generic: it does not assume Synology, Linux, or macOS. Users configure:
-- how to connect (SSH)
-- which devices to query (explicit list or discovery command)
-- what command to run per device (template with `{device}`)
-- how to parse output (smartctl JSON preferred; text parser fallback; regex escape hatch)
+This repository implements a Home Assistant custom integration that monitors remote disk SMART health. It supports Synology DSM over SNMP and generic command polling over SSH. Users configure:
+- how to connect (Synology SNMP or SSH)
+- which devices to query for SSH command polling
+- what command to run per SSH device (template with `{device}`)
+- how to parse SSH command output (smartctl JSON preferred; text parser fallback; regex escape hatch)
 
 The integration exposes per-drive entities (sensors + binary sensors) and supports trend/delta tracking for critical counters.
 
@@ -13,6 +13,7 @@ The integration exposes per-drive entities (sensors + binary sensors) and suppor
 
 ## Goals
 - Generic across hosts accessible by SSH (Synology DSM, Linux, macOS, etc.)
+- Synology DSM polling through SNMPv3 authPriv
 - Configurable command + configurable device list (no hardcoding `/dev/sataX`)
 - Robust parsing (prefer `smartctl -j` JSON; text parsing when JSON not available)
 - Expose the critical SMART counters and “policy” health states suitable for automations
@@ -20,7 +21,7 @@ The integration exposes per-drive entities (sensors + binary sensors) and suppor
 - Diagnostics-friendly (surface parse/command errors without spamming logs)
 
 Non-goals (v1)
-- Native non-SSH transports (SNMP, IPMI, vendor APIs)
+- Native non-SSH transports beyond Synology SNMP (IPMI, vendor APIs)
 - Automatic OS detection or automatic `-d` flag selection (user config supplies this)
 - Full SMART attribute coverage for all vendors (critical set only; extend later)
 - Disk discovery across exotic HBAs without user help

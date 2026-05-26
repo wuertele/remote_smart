@@ -1,4 +1,4 @@
-"""Remote SMART over SSH integration for Home Assistant."""
+"""Remote SMART integration for Home Assistant."""
 from __future__ import annotations
 
 import logging
@@ -11,7 +11,13 @@ from homeassistant.const import ATTR_DEVICE_ID, Platform
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import device_registry as dr
 
-from .const import CONF_HOST, DOMAIN, SERVICE_RESET_DELTAS
+from .const import (
+    CONF_HOST,
+    CONF_TRANSPORT,
+    DOMAIN,
+    SERVICE_RESET_DELTAS,
+    TRANSPORT_SYNOLOGY_SNMP,
+)
 from .coordinator import SmartSSHCoordinator
 
 if TYPE_CHECKING:
@@ -29,7 +35,7 @@ SERVICE_RESET_DELTAS_SCHEMA = vol.Schema(
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    """Set up the Remote SMART over SSH component."""
+    """Set up the Remote SMART component."""
     hass.data.setdefault(DOMAIN, {})
 
     async def handle_reset_deltas(call: ServiceCall) -> None:
@@ -75,15 +81,20 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Set up Remote SMART over SSH from a config entry."""
+    """Set up Remote SMART from a config entry."""
+    is_snmp = entry.data.get(CONF_TRANSPORT) == TRANSPORT_SYNOLOGY_SNMP
+    gateway_name = "SMART SNMP" if is_snmp else "SMART SSH"
+    gateway_model = "Synology SNMP Agent" if is_snmp else "SSH Gateway"
+    gateway_manufacturer = "Synology" if is_snmp else "Remote SMART"
+
     # Create the hub device so child devices can reference it via via_device
     device_registry = dr.async_get(hass)
     device_registry.async_get_or_create(
         config_entry_id=entry.entry_id,
         identifiers={(DOMAIN, entry.entry_id)},
-        name=f"SMART SSH ({entry.data[CONF_HOST]})",
-        manufacturer="Remote SMART over SSH",
-        model="SSH Gateway",
+        name=f"{gateway_name} ({entry.data[CONF_HOST]})",
+        manufacturer=gateway_manufacturer,
+        model=gateway_model,
     )
 
     coordinator = SmartSSHCoordinator(hass, entry)

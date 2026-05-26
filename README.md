@@ -1,10 +1,13 @@
-# Remote SMART over SSH (Home Assistant Custom Integration)
+# Remote SMART (Home Assistant Custom Integration)
 
-Remote SMART over SSH is a Home Assistant custom integration that monitors disk
-S.M.A.R.T. health by executing a user-configured command over SSH against a
-user-configured set of storage devices.
+Remote SMART is a Home Assistant custom integration that monitors disk
+S.M.A.R.T. health from remote storage systems.
 
-It is intentionally **generic**:
+It supports two transports:
+- **Synology SNMP** for DSM systems, using Synology's official disk, SMART, and storage I/O MIBs
+- **SSH command polling** for generic hosts where `smartctl` must be executed remotely
+
+The SSH mode is intentionally **generic**:
 - Works with Synology DSM, generic Linux hosts, macOS, or any SSH-accessible system
 - Does not assume `/dev/sdX`, `/dev/sataX`, or any specific platform
 - The command, device list, and parsing strategy are fully configurable
@@ -16,6 +19,7 @@ regex-based fallbacks are supported.
 
 ## Features
 
+- Synology DSM SMART polling over SNMPv3 authPriv
 - SSH-based polling of SMART data
 - Configurable command template (`{device}` substitution)
 - Explicit device lists or discovery commands
@@ -30,7 +34,8 @@ regex-based fallbacks are supported.
 
 ## Typical Use Cases
 
-- Synology NAS via `/dev/sataX` with `-d sat`
+- Synology DSM via SNMPv3 authPriv
+- Synology NAS via SSH and `/dev/sataX` with `-d sat`
 - Linux servers with HBAs or SATA/NVMe disks
 - macOS systems with Homebrew smartmontools
 - Any remote host where `smartctl` can be executed
@@ -43,21 +48,24 @@ regex-based fallbacks are supported.
 1. Copy `custom_components/smart_ssh/` into your Home Assistant `config/custom_components/`
 2. Restart Home Assistant
 3. Go to **Settings → Devices & Services → Add Integration**
-4. Search for **Remote SMART over SSH**
+4. Search for **Remote SMART**
 
 ### HACS (Custom Repository)
 1. Open HACS in Home Assistant
 2. Click the three dots menu → **Custom repositories**
-3. Add your repository URL with category **Integration**
-4. Search for "Remote SMART over SSH" and install
+3. Add `https://github.com/wuertele/remote_smart` with category **Integration**
+4. Search for **Remote SMART** and install
 
 ---
 
 ## Security Model (Important)
 
-This integration executes commands over SSH.
+Synology SNMP mode performs read-only SNMP table queries and does not execute
+commands. Prefer SNMPv3 authPriv and restrict network access to Home Assistant.
 
-Recommended best practices:
+SSH mode executes commands over SSH.
+
+Recommended SSH best practices:
 - Use a **dedicated user** on the remote host
 - Prefer **key-based SSH authentication**
 - If root privileges are required:
@@ -70,7 +78,19 @@ The integration never logs passwords or private keys.
 
 ## Example Configurations
 
-### Synology DSM
+### Synology DSM over SNMP
+Configure DSM through **Control Panel -> Terminal & SNMP -> SNMP** or the
+`SYNO.Core.SNMP` WebAPI. Prefer SNMPv3 with authentication and privacy enabled.
+
+The integration reads:
+- `SYNOLOGY-SMART-MIB` for SMART attributes
+- `SYNOLOGY-DISK-MIB` for disk model, name, temperature, and health status
+- `SYNOLOGY-STORAGEIO-MIB` for device serial numbers
+
+Do not rely on hand-editing `/etc/snmp/snmpd.conf` as the source of truth on
+DSM. DSM owns the SNMP service configuration and can regenerate runtime files.
+
+### Synology DSM over SSH
 - Devices: `/dev/sata1` … `/dev/sata12`
 - Command template:
 

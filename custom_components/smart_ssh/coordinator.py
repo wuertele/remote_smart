@@ -1,4 +1,4 @@
-"""Data coordinator for Remote SMART over SSH integration."""
+"""Data coordinator for Remote SMART integration."""
 from __future__ import annotations
 
 import asyncio
@@ -34,6 +34,13 @@ from .const import (
     CONF_SCAN_INTERVAL,
     CONF_SUDO_MODE,
     CONF_SUDO_PASSWORD,
+    CONF_SNMP_AUTH_KEY,
+    CONF_SNMP_AUTH_PROTOCOL,
+    CONF_SNMP_COMMUNITY,
+    CONF_SNMP_PRIV_KEY,
+    CONF_SNMP_PRIV_PROTOCOL,
+    CONF_SNMP_VERSION,
+    CONF_TRANSPORT,
     CONF_USERNAME,
     CRITICAL_METRICS,
     DEFAULT_COMMAND_TIMEOUT,
@@ -41,14 +48,20 @@ from .const import (
     DEFAULT_FAIL_MODE,
     DEFAULT_MAX_PARALLEL,
     DEFAULT_SCAN_INTERVAL,
+    DEFAULT_SNMP_AUTH_PROTOCOL,
+    DEFAULT_SNMP_PRIV_PROTOCOL,
+    DEFAULT_SNMP_VERSION,
     DOMAIN,
     FAIL_MODE_STALE,
     PARSER_SMARTCTL_ATA_TEXT,
     PARSER_SMARTCTL_JSON,
     STORAGE_KEY,
     STORAGE_VERSION,
+    TRANSPORT_SSH,
+    TRANSPORT_SYNOLOGY_SNMP,
 )
 from .parsers import DriveReport, ParseError, SmartctlAtaTextParser, SmartctlJsonParser
+from .snmp_client import SNMPError, SynologySNMPClient
 from .ssh_client import SSHClient, SSHError
 
 if TYPE_CHECKING:
@@ -58,7 +71,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class SmartSSHCoordinator(DataUpdateCoordinator[dict[str, DriveReport]]):
-    """Coordinator for fetching SMART data over SSH."""
+    """Coordinator for fetching remote SMART data."""
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         """Initialize the coordinator."""
@@ -115,6 +128,9 @@ class SmartSSHCoordinator(DataUpdateCoordinator[dict[str, DriveReport]]):
 
     async def _async_update_data(self) -> dict[str, DriveReport]:
         """Fetch SMART data from all configured devices."""
+        if self.entry.data.get(CONF_TRANSPORT, TRANSPORT_SSH) == TRANSPORT_SYNOLOGY_SNMP:
+            return await self._async_update_snmp_data()
+
         # Load stored data (baseline metrics and max deltas) on first run
         if not self._stored_data_loaded:
             await self._load_stored_data()
@@ -186,6 +202,54 @@ class SmartSSHCoordinator(DataUpdateCoordinator[dict[str, DriveReport]]):
             if self._ssh_client:
                 await self._ssh_client.disconnect()
                 self._ssh_client = None
+
+    async def _async_update_snmp_data(self) -> dict[str, DriveReport]:
+        """Fetch SMART data from Synology SNMP MIBs."""
+        if not self._stored_data_loaded:
+            await self._load_stored_data()
+            self._stored_data_loaded = True
+
+        data = self.entry.data
+        fail_mode = data.get(CONF_FAIL_MODE, DEFAULT_FAIL_MODE)
+
+        client = SynologySNMPClient(
+            host=data[CONF_HOST],
+            port=data[CONF_PORT],
+            version=data.get(CONF_SNMP_VERSION, DEFAULT_SNMP_VERSION),
+            community=data.get(CONF_SNMP_COMMUNITY),
+            username=data.get(CONF_USERNAME),
+            auth_key=data.get(CONF_SNMP_AUTH_KEY),
+            auth_protocol=data.get(CONF_SNMP_AUTH_PROTOCOL, DEFAULT_SNMP_AUTH_PROTOCOL),
+            priv_key=data.get(CONF_SNMP_PRIV_KEY),
+            priv_protocol=data.get(CONF_SNMP_PRIV_PROTOCOL, DEFAULT_SNMP_PRIV_PROTOCOL),
+            timeout=data.get(CONF_CONNECT_TIMEOUT, DEFAULT_CONNECT_TIMEOUT),
+        )
+
+        try:
+            reports = await client.fetch_reports()
+        except SNMPError as err:
+            if fail_mode == FAIL_MODE_STALE and self._last_reports:
+                stale_reports: dict[str, DriveReport] = {}
+                for report in self._last_reports.values():
+                    report.error = str(err)
+                    stale_reports[report.unique_key] = report
+                return stale_reports
+            raise UpdateFailed(f"SNMP update failed: {err}") from err
+        finally:
+            client.close()
+
+        self._device_aliases = {
+            report.device: str(report.raw.get("disk_alias"))
+            for report in reports.values()
+            if report.raw and report.raw.get("disk_alias")
+        }
+        self._aliases_loaded = True
+        self._last_reports = {report.device: report for report in reports.values()}
+
+        self._compute_deltas(reports)
+        await self._store_metrics(reports)
+
+        return reports
 
     async def _fetch_device_data(self, device: str) -> DriveReport:
         """Fetch SMART data for a single device."""

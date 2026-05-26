@@ -1,4 +1,4 @@
-"""Binary sensor platform for Remote SMART over SSH integration."""
+"""Binary sensor platform for Remote SMART integration."""
 from __future__ import annotations
 
 from dataclasses import dataclass

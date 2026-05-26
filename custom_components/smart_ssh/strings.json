@@ -2,8 +2,18 @@
   "config": {
     "step": {
       "user": {
+        "title": "Transport",
+        "description": "Choose how disk SMART data should be collected.",
+        "data": {
+          "transport": "Transport"
+        },
+        "data_description": {
+          "transport": "Use SSH for generic hosts or Synology SNMP for DSM disk SMART data."
+        }
+      },
+      "ssh": {
         "title": "SSH Connection",
-        "description": "Configure SSH connection to the remote host running smartctl.",
+        "description": "Configure SSH command polling.",
         "data": {
           "host": "Host",
           "port": "Port",
@@ -22,6 +32,27 @@
           "private_key": "Paste your private key in PEM format (starts with -----BEGIN)",
           "host_key_policy": "How to handle unknown host keys",
           "sudo_mode": "Whether to use sudo for smartctl commands"
+        }
+      },
+      "snmp": {
+        "title": "Synology SNMP",
+        "description": "Configure DSM SNMP polling for Synology disk SMART data.",
+        "data": {
+          "host": "Host",
+          "port": "Port",
+          "username": "SNMPv3 Username",
+          "connect_timeout": "Connection Timeout",
+          "snmp_version": "SNMP Version",
+          "snmp_community": "SNMP Community",
+          "snmp_auth_protocol": "SNMP Auth Protocol",
+          "snmp_auth_key": "SNMP Auth Key",
+          "snmp_priv_protocol": "SNMP Privacy Protocol",
+          "snmp_priv_key": "SNMP Privacy Key"
+        },
+        "data_description": {
+          "host": "Hostname or IP address of the Synology DSM host",
+          "snmp_auth_key": "SNMPv3 authentication password.",
+          "snmp_priv_key": "SNMPv3 privacy/encryption password."
         }
       },
       "devices": {
